@@ -1,0 +1,55 @@
+import sqlite3
+'''the following are the layout of the tables that the functions beneath are accessing:
+
+price_table_db ( 
+        token_address text,
+        time text,
+        price float
+        )
+        
+buy_data_table (
+            name text,
+            symbol text,
+            token_address text,
+            time text,
+            time_unix int,
+            gasUsed int,
+            token_quantity float,
+            transaction_fee float
+            )
+sell_data_table (
+            name text,
+            symbol text,
+            token_address text,
+            time text,
+            time_unix int,
+            gasUsed int,
+            token_quantity float,
+            transaction_fee float
+            )
+
+'''
+
+def get_price_data(token_address):
+    connection=sqlite3.connect('price_db.db')
+    aaa = connection.cursor()
+    
+    aaa.execute("SELECT * FROM price_table_db WHERE token_address=:token_address",{'token_address':token_address})
+    price_data = aaa.fetchall()
+    return price_data
+    
+def get_buy_data(token_address):
+    conn3=sqlite3.connect('buy.db')
+    c3=conn3.cursor()
+    
+    c3.execute("SELECT * FROM buy_data_table WHERE token_address=:token_address",{'token_address':token_address})
+    buy_data = (c3.fetchall())
+    return buy_data
+    
+def get_sell_data(token_address):
+    conn4 = sqlite3.connect('sell.db')
+    c4 = conn4.cursor()
+    
+    c4.execute("SELECT * FROM sell_data_table WHERE token_address=:token_address",{'token_address':token_address})
+    sell_data = c4.fetchall()
+    return sell_data
