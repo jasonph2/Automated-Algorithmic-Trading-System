@@ -1,0 +1,62 @@
+import plotly.graph_objects as go
+import pandas as pd
+def get_individual_price_data(token_address):   #gets price data for each individual token address from database
+    aaa.execute("SELECT * FROM price_table_db WHERE token_address=:token_address",{'token_address':token_address})
+    individual_price_data = aaa.fetchall()
+    return individual_price_data
+
+def get_all_token_addresses():     #gets list of all token addresses in the price database
+    aaa.execute("SELECT DISTINCT token_address FROM price_table_db")
+    all_token_address = (aaa.fetchall())
+    all_token_addresses=[]
+    for token_address in all_token_address:
+        token_address = ''.join(token_address)
+        all_token_addresses.append(token_address)
+    return all_token_addresses
+
+def create_ohlc(token_address):   #creates an open high low close pandas dataframe for price data of a given token address
+    list_of_ohlc=[]
+    ohlc_list=[]
+    individual_price_data = get_individual_price_data(token_address) #calls above function
+    for i in range(0,len(individual_price_data)):
+        if individual_price_data[i][1][12:17]==individual_price_data[i-1][1][12:17]:   #parses time data to get one minute intervals 
+            
+            if individual_price_data[i][2] > high:
+                high=individual_price_data[i][2]
+            elif individual_price_data[i][2] < low:
+                low=individual_price_data[i][2]
+            else:
+                pass
+            close = individual_price_data[i][2]
+            ohlc_list[1] = high
+            ohlc_list[2] = low
+            ohlc_list[3] = close
+        else:
+            high = individual_price_data[i-1][2]
+            low = individual_price_data[i-1][2]
+            if i==0:
+                pass
+            else:
+                list_of_ohlc.append(ohlc_list)
+            ohlc_list=[]   #initializes a list of the given values to be places into the PD dataframe
+            for j in range(0,4):
+                ohlc_list.append(individual_price_data[i][2])
+            ohlc_list.append(individual_price_data[i][1][:17])
+    table_of_ohlc = pd.DataFrame(list_of_ohlc, columns = ['open_','high','low','close','time'])
+    return table_of_ohlc
+
+def create_candlestick_chart(token_address):
+    ohlc = create_ohlc(token_address)  #calls above function
+    ohlc = ohlc.set_index(pd.DatetimeIndex(ohlc['time'].values))  #orders dataframe by time
+    graph = go.Figure(data = [go.Candlestick(x = ohlc.index,
+                             low = ohlc['low'],
+                             high = ohlc['high'],
+                             close = ohlc['close'],
+                             open = ohlc['open_'],
+                             increasing_line_color = 'green',
+                             decreasing_line_color = 'red')])  #uses plotly graph objects to form candlesticks
+    graph.show()  #displays candlestick chart
+
+all_token_addresses = get_all_token_addresses()
+for token_address in all_token_addresses:
+    create_candlestick_chart(token_address)
