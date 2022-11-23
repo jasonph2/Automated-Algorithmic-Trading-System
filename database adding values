@@ -1,0 +1,148 @@
+#below is the functionality for adding values to different databases
+
+#this function is called through the scraper and inserts values into price table database
+#table is kept concise because of quantity of calls
+#price data is updated every six seconds, paving the way for more refined algorithms
+#due to competitive advantage the price database gives, the scraper will not be included in the project file
+def add_price_tracking_values(data):
+    pair_token_address=data['pair'][5:]
+    with connection:
+        aaa.execute("INSERT INTO price_table_db VALUES (:token_address,:time,:price)",
+                   {'token_address':pair_token_address,
+                    'time':data['time'],
+                    'price':data['value']
+                    })
+    return
+    
+
+#accepts the token address as a parameter, creates a dictionary to be passed into add_buy_values
+#address, apikey, pro api key are all hidden for privacy
+def get_buy_data_dict(token_address):
+    url = 'https://api.bscscan.com/api'
+    parameters = {
+        'module':'account',
+        'action':'tokentx',
+        'contractaddress':token_address,
+        'address':'',
+        'apikey':''}
+        
+    headers = {
+      'Accepts': 'application/json',
+      'X-CMC_PRO_API_KEY': ''}
+
+    session = Session()
+    session.headers.update(headers)
+
+    try:
+        response = session.get(url, params=parameters)
+        data = json.loads(response.text)
+        #Added if statement to handle failed transactions and not crash bot
+        print(data)
+        if data['message'] == 'No transactions found':
+            buy_data_dict={
+                'token_address': token_address,
+                'Transaction Failed': True,
+                'Error Message from Pancake Swap': data
+                }
+            return buy_data_dict
+        else:
+            token_quantity=int(data['result'][0]['value'])*10**-(int(data['result'][0]['tokenDecimal']))
+            gas_Used=int(data['result'][0]['gasUsed'])
+            gas_Price=int(data['result'][0]['gasPrice'])
+            a_gas_Price=Web3.fromWei(gas_Price,'ether')
+            transaction_fee=float(gas_Used*a_gas_Price)
+            Unixtime=int(data['result'][0]['timeStamp'])
+            readable_time=datetime.utcfromtimestamp(Unixtime).strftime('%Y-%m-%d %H:%M:%S')
+            buy_data_dict={'tokenName':data['result'][0]['tokenName'],
+                           'tokenSymbol':data['result'][0]['tokenSymbol'],
+                           'token_address':token_address,
+                           'timestamp':readable_time,
+                           'unix_timeStamp':data['result'][0]['timeStamp'],
+                           'gasUsed':data['result'][0]['gasUsed'],
+                           'token_quantity':token_quantity,
+                           'transaction_fee':transaction_fee
+                                }
+    except (ConnectionError, Timeout, TooManyRedirects) as e:
+          print(e)
+    return buy_data_dict
+
+#inserts buy values into table from dictionary
+def add_buy_values(token_address):
+    #calls above function
+    buy_data_dict=get_buy_data_dict(token_address)
+    if 'Transaction Failed' in buy_data_dict.keys():
+        return None
+    else:
+        print(buy_data_dict)
+        with conn3:
+            c3.execute("INSERT INTO buy_data_table VALUES (:name,:symbol,:token_address,:time,:time_unix,:gasUsed,:token_quantity,:transaction_fee)"
+                      ,{'name':buy_data_dict['tokenName'],
+                        'symbol':buy_data_dict['tokenSymbol'],
+                        'token_address':buy_data_dict['token_address'],
+                        'time':buy_data_dict['timestamp'],
+                        'time_unix':buy_data_dict['unix_timeStamp'],
+                        'gasUsed':buy_data_dict['gasUsed'],
+                        'token_quantity':buy_data_dict['token_quantity'],
+                        'transaction_fee':buy_data_dict['transaction_fee']
+                       })
+        return True
+        
+ 
+ #accepts the token address as a parameter, creates a dictionary to be passed into add_sell_values
+ #address, apikey, pro api key are all hidden for privacy
+ 
+ def get_sell_data_dict(token_address):
+    url = 'https://api.bscscan.com/api'
+    parameters = {
+        'module':'account',
+        'action':'tokentx',
+        'contractaddress':token_address,
+        'address':'',
+        'apikey':''}
+        
+    headers = {
+      'Accepts': 'application/json',
+      'X-CMC_PRO_API_KEY': ''}
+
+    session = Session()
+    session.headers.update(headers)
+
+    try:
+        response = session.get(url, params=parameters)
+        data = json.loads(response.text)
+        token_quantity=int(data['result'][1]['value'])*10**-(int(data['result'][1]['tokenDecimal']))
+        gas_Used=int(data['result'][1]['gasUsed'])
+        gas_Price=int(data['result'][1]['gasPrice'])
+        a_gas_Price=Web3.fromWei(gas_Price,'ether')
+        transaction_fee=float(gas_Used*a_gas_Price)
+        Unixtime=int(data['result'][1]['timeStamp'])
+        readable_time=datetime.utcfromtimestamp(Unixtime).strftime('%Y-%m-%d %H:%M:%S')
+        sell_data_dict={'tokenName':data['result'][1]['tokenName'],
+                       'tokenSymbol':data['result'][1]['tokenSymbol'],
+                       'token_address':token_address,
+                       'timestamp':readable_time,
+                       'unix_timeStamp':data['result'][1]['timeStamp'],
+                       'gasUsed':data['result'][1]['gasUsed'],
+                       'token_quantity':token_quantity,
+                       'transaction_fee':transaction_fee
+                            }
+    except (ConnectionError, Timeout, TooManyRedirects) as e:
+          print(e)
+    return sell_data_dict
+    
+#inserts values from dictionary into table
+def add_sell_values(token_address):
+    #calls function above
+    sell_data_dict=get_sell_data_dict(token_address)
+    print(sell_data_dict)
+    with conn4:
+        c4.execute("INSERT INTO sell_data_table VALUES (:name,:symbol,:token_address,:time,:time_unix,:gasUsed,:token_quantity,:transaction_fee)"
+                  ,{'name':sell_data_dict['tokenName'],
+                    'symbol':sell_data_dict['tokenSymbol'],
+                    'token_address':sell_data_dict['token_address'],
+                    'time':sell_data_dict['timestamp'],
+                    'time_unix':sell_data_dict['unix_timeStamp'],
+                    'gasUsed':sell_data_dict['gasUsed'],
+                    'token_quantity':sell_data_dict['token_quantity'],
+                    'transaction_fee':sell_data_dict['transaction_fee']
+                   })
