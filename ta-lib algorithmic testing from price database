@@ -1,0 +1,133 @@
+import sqlite3
+import time
+import dateutil.parser as dp
+import datetime
+import pandas as pd
+import talib
+buy_slippage = 0.07  #estimate of slippage + tax + transaction fees per transaction
+sell_slippage = 0.07
+initial_balance = 100  #how much investment size is into fund
+initial_investment_size_percentage=.05   #share of fund dedicated to each transaction
+
+connection=sqlite3.connect('price_db.db')
+aaa = connection.cursor()
+
+def get_individual_price_data(token_address):
+    aaa.execute("SELECT * FROM price_table_db WHERE token_address=:token_address",{'token_address':token_address})
+    individual_price_data = aaa.fetchall()
+    return individual_price_data
+def get_all_token_addresses():
+    aaa.execute("SELECT DISTINCT token_address FROM price_table_db")
+    all_token_addresses = (aaa.fetchall())
+    return all_token_addresses
+
+def create_ohlc(token_address):
+    list_of_ohlc=[]
+    ohlc_list=[]
+    individual_price_data = get_individual_price_data(token_address)
+    for i in range(0,len(individual_price_data)):
+        if individual_price_data[i][1][12:17]==individual_price_data[i-1][1][12:17]:
+            
+            if individual_price_data[i][2] > high:
+                high=individual_price_data[i][2]
+            elif individual_price_data[i][2] < low:
+                low=individual_price_data[i][2]
+            else:
+                pass
+            close = individual_price_data[i][2]
+            ohlc_list[1] = high
+            ohlc_list[2] = low
+            ohlc_list[3] = close
+        else:
+            high = individual_price_data[i-1][2]
+            low = individual_price_data[i-1][2]
+            if i==0:
+                pass
+            else:
+                list_of_ohlc.append(ohlc_list)
+            ohlc_list=[]
+            for j in range(0,4):
+                ohlc_list.append(individual_price_data[i][2])
+            ohlc_list.append(individual_price_data[i][1][:17])
+    table_of_ohlc = pd.DataFrame(list_of_ohlc, columns = ['open_','high','low','close','time'])
+    return table_of_ohlc
+
+def get_all_price_data():
+    aaa.execute("SELECT DISTINCT token_address FROM price_table_db")
+    q = (aaa.fetchall())
+    for i in q:
+        string=''.join(i)
+        list_of_token_addresses.append(string)
+    #print(list_of_token_addresses)
+
+    for i in list_of_token_addresses:
+        all_price_data.append(get_individual_price_data(i))
+    return all_price_data
+
+def get_initial_time_list(all_price_data):
+    initial_time_list=[]
+    b=-1
+    for i in all_price_data:
+        b+=1
+        initial_time = all_price_data[b][0][1]
+        parsed_timea = dp.parse(initial_time)
+        ainitial_time = int(parsed_timea.timestamp())
+        initial_time_list.append(ainitial_time)
+    return initial_time_list
+
+def calculate_RSI(table_of_ohlc):
+    open_ = table_of_ohlc.loc[:,"open_"]
+    high = table_of_ohlc.loc[:,"high"]
+    low = table_of_ohlc.loc[:,"low"]
+    close = table_of_ohlc.loc[:,"close"]
+    RSI = talib.RSI(close)
+    table_of_ohlc['RSI'] = RSI
+    for j in range(0,len(table_of_ohlc)):
+        if table_of_ohlc["RSI"][j]>70:
+            final_price = table_of_ohlc["close"][j]
+            final_time = table_of_ohlc["time"][j]
+            parsed_timea = dp.parse(final_time)
+            afinal_time = int(parsed_timea.timestamp())
+            break
+        else:
+            final_price = table_of_ohlc["close"][j]
+            final_time = table_of_ohlc["time"][j]
+            parsed_timea = dp.parse(final_time)
+            afinal_time = int(parsed_timea.timestamp())
+        #print(final_price)
+    return final_price, afinal_time
+
+
+all_price_data=[]
+list_of_token_addresses=[]
+list_of_running_balances=[]  #utilization of a running balance to test compounding effect of profits/losses
+get_all_price_data()  #calls above function to acquire all of the price data from the above function
+initial_time_list = get_initial_time_list(all_price_data)  #orders the price data by time
+
+for i in (all_price_data):    #initializes a list with the initial investment anticipated size for the given transactions
+    list_of_running_balances.append(initial_balance) 
+i=0
+net=0
+all_token_addresses = get_all_token_addresses()
+for token_address in all_token_addresses:
+    token_address=''.join(token_address)
+    table_of_ohlc = create_ohlc(token_address)  #creates open high low close table
+    initial_investment=initial_investment_size_percentage*list_of_running_balances[i]  #utilizes running balance to adjust investment size
+    initial_price = table_of_ohlc["open_"][0]
+    
+    for l in range(i+1,len(list_of_running_balances)):
+        list_of_running_balances[l] -= list_of_running_balances[i]*initial_investment_size_percentage  #adjust investment size of future investments
+
+    a = calculate_RSI(token_address)  #Although RSI is not a good technical indicator for the dataset we have, 
+                                            #it is being used as the example to hide other indicators being utilized
+    final_price = a[0]
+    afinal_time = a[1]
+    
+    amount_of_crypto_bought = (initial_investment / initial_price)*(1-buy_slippage)
+    value_at_sell = amount_of_crypto_bought*(final_price)*(1-sell_slippage)
+    p_l = value_at_sell - initial_investment    #calculates profit loss of a given transaction
+    for j in range(0,len(initial_time_list)):
+        if afinal_time<initial_time_list[j]:
+            list_of_running_balances[j]=list_of_running_balances[j]+p_l+initial_investment   #adjusts future investment sizes based on timing of transaction and p/l
+    net += p_l  #running counter of project profit/loss
+    i+=1
