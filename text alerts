@@ -1,0 +1,20 @@
+#this function is implemented in various places to give updates about transactions, errors that might occur, internet being down, etc. 
+
+import smtplib
+from email.message import EmailMessage
+def text_alert(subject, body, to):   #to is the phonenumber to send the text alert to 
+    msg = EmailMessage()
+    msg.set_content(body)
+    msg['subject'] = subject
+    msg['to'] = to
+    
+    user = #user's email address
+    msg['from'] = user
+    password = #user's email address password
+    
+    server = smtplib.SMTP("smtp.gmail.com", 587)
+    server.starttls()
+    server.login(user, password)
+    server.send_message(msg)
+    server.quit
+
