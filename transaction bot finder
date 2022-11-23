@@ -1,0 +1,35 @@
+#This program sifts through a buyer_list and seller_list file and find any pairs with associated P/L to see performance of other bots in competition
+
+#This function reads from a file and produce a dictionary with addresses and associated dollar amounts
+def create_address_dict(file_name): 
+    start_list = list()
+    with open(file_name, "r") as file:
+        for line in file:
+            line = line.rstrip()
+            if line == "Track":
+                continue
+            start_list.append(line)
+        
+    #Read each line of the file and then if new address, add value; otherwise, create new dict entry
+    address_dict = dict()
+    for i in range(0, len(start_list), 2):
+        if start_list[i] not in address_dict:
+            address_dict[start_list[i]] = float((start_list[i+1][1:].replace(",", "")))
+        else:
+            address_dict[start_list[i]] += float((start_list[i+1][1:].replace(",", "")))
+    return address_dict
+    
+#Creates the dictionaries for addresses and associated USD amounts
+buyer_dict = create_address_dict("buyer_list.txt")
+seller_dict = create_address_dict("seller_list.txt")
+
+potential_bot_dict = dict()
+for address in buyer_dict:
+    if address in seller_dict:
+        potential_bot_dict[address] = {"Bought": buyer_dict[address], "Sold": seller_dict[address], "P/L": round(seller_dict[address] - buyer_dict[address], 2)}
+
+if len(potential_bot_dict) == 0:
+    print("No buy and sell transactions for any address within the given trade window.")
+else:
+    print("Potential bot trades:")
+    print(potential_bot_dict)
