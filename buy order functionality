@@ -1,6 +1,6 @@
 #The function below is a buy order through bscscan utlizing the web3 library. This is merely a rough outline of the buy order, but a lot of the adjustments that the
 #team made to increase efficiency, lower slippage, and avoid scams through webscraping was not included. The sell order is very similar to the buy order except that 
-#there is an approval function for selling of the given token in addition tothe swap function. 
+#there is an approval function for selling of the given token in addition to the swap function. 
 
 from web3 import Web3
 import time
